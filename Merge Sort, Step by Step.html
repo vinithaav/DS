@@ -1,0 +1,135 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Merge Sort, Step by Step</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;700&display=swap">
+<style>
+/* Layout: one column. Animated recursion tree, narration and controls, code beside rules, then the cost picture. */
+:root{--bg:#f3f6f8;--panel:#fff;--fg:#17222d;--muted:#566674;--line:#d3dde4;--accent:#2457d6;--on:#fff;
+--left:#ffd36b;--right:#8fd8cf;--done:#a9dc8c;--tile:#e4ebf1;--ink:#17222d;
+--d:'Space Grotesk',system-ui,sans-serif;--b:Inter,system-ui,sans-serif;--m:'JetBrains Mono',ui-monospace,monospace}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#10171e;--panel:#18222c;--fg:#e8eef3;--muted:#9badbc;--line:#2d3c4a;--accent:#85a9ff;--on:#0d1420;--tile:#bccbd7;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#10171e;--panel:#18222c;--fg:#e8eef3;--muted:#9badbc;--line:#2d3c4a;--accent:#85a9ff;--on:#0d1420;--tile:#bccbd7;color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font:16px/1.6 var(--b);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+main{max-width:760px;margin:0 auto;padding-block:32px 48px;display:flex;flex-direction:column;gap:20px}
+h1,h2{font-family:var(--d);line-height:1.15;margin:0;text-wrap:balance}h1{font-size:2.2rem}h2{font-size:1.3rem;margin-top:16px}
+p{margin:0;max-width:65ch}.sub{color:var(--muted)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px}
+svg{display:block;width:100%;height:auto}
+.box{fill:none;stroke:var(--line);stroke-width:1.5}.box.cur{stroke:var(--accent);stroke-width:3}
+.tile{transition:transform .45s ease}.tile rect{fill:var(--tile);transition:fill .25s}
+.tile text{fill:var(--ink);font:700 24px var(--m);text-anchor:middle}.tile text .s{font-size:13px}
+.tile.l rect{fill:var(--left)}.tile.r rect{fill:var(--right)}.tile.ok rect{fill:var(--done)}
+.tile.cmp rect{stroke:var(--accent);stroke-width:5}
+#say{min-height:3.4em;margin:8px 0;font-weight:600}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+button,input[type=text]{font:600 14px var(--b);border:1px solid var(--line);border-radius:6px;padding:8px 14px;background:var(--panel);color:var(--fg)}
+button{cursor:pointer}button.main{background:var(--accent);color:var(--on);border-color:var(--accent);min-width:88px}
+button:disabled{opacity:.4;cursor:default}:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+input[type=range]{accent-color:var(--accent)}#scrub{width:100%;margin:10px 0 4px}
+.stats{display:flex;flex-wrap:wrap;gap:4px 20px;font:13px var(--m);color:var(--muted)}
+.key i{display:inline-block;width:11px;height:11px;border-radius:2px;margin-right:6px}
+#vals{flex:1 1 220px;min-width:0;font-family:var(--m)}#err{color:var(--muted);font-size:14px}
+pre{margin:0;overflow-x:auto;font:13px/1.8 var(--m)}pre span{display:block;padding:0 8px;white-space:pre;border-radius:4px}
+pre span.on{background:var(--accent);color:var(--on)}
+.tw{overflow-x:auto}table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+td,th{text-align:left;padding:7px 12px 7px 0;border-bottom:1px solid var(--line)}
+@media (prefers-reduced-motion:reduce){.tile,.tile rect{transition:none}}
+</style>
+<main>
+<header><h1>Merge sort, step by step</h1>
+<p class="sub">Split the list in half until every piece has one item. Then merge the pieces back in order. Press Play, or step through one move at a time.</p></header>
+<section class="panel" aria-label="Animation">
+<svg id="stage" role="img" aria-label="Recursion tree of the merge sort"></svg>
+<p id="say" aria-live="polite"></p>
+<div class="row"><button class="main" id="play">Play</button><button id="back">Back</button><button id="next">Step</button><button id="reset">Restart</button>
+<label class="row" for="speed">Speed <input id="speed" type="range" min="1" max="5" value="2"></label></div>
+<input id="scrub" type="range" min="0" value="0" aria-label="Timeline">
+<div class="stats"><span id="pos"></span><span id="cmp"></span><span class="key"><i style="background:var(--left)"></i>left half</span><span class="key"><i style="background:var(--right)"></i>right half</span><span class="key"><i style="background:var(--done)"></i>sorted</span></div>
+</section>
+<form class="row" id="form"><label for="vals">Your numbers</label><input type="text" id="vals" value="38, 27, 43, 3, 9, 82, 10, 27"><button>Sort these</button><button type="button" id="shuf">Random</button></form>
+<p id="err" role="alert"></p>
+<h2>The code that is running</h2>
+<div class="panel"><pre id="code"></pre></div>
+<h2>The idea that makes it work</h2>
+<p>Merging two lists that are <em>already sorted</em> is easy. The smallest remaining item must be at the front of one of them. So you compare the two front items, take the smaller one, and repeat. When one side runs out, copy the rest of the other.</p>
+<p>A list with one item is already sorted. That gives the splitting a place to stop, and every merge after it starts with two sorted halves.</p>
+<p><strong>Stability:</strong> on a tie, the code takes from the left (<code>&lt;=</code>), so equal values keep their original order. The default list has two 27s, marked a and b. Watch 27a stay ahead of 27b.</p>
+<h2>Why it costs n log n</h2>
+<p>Halving a list of n items takes about log₂ n levels to reach single items. The merges on each level handle at most n items in total. Multiply the two to get O(n log n).</p>
+<div class="panel tw"><table><thead><tr><th>Items (n)</th><th>n log₂ n</th><th>n²</th></tr></thead><tbody>
+<tr><td>8</td><td>24</td><td>64</td></tr><tr><td>1,024</td><td>10,240</td><td>1,048,576</td></tr><tr><td>1,048,576</td><td>20,971,520</td><td>about 1.1 trillion</td></tr></tbody></table></div>
+<p class="sub">These show how the work grows. They are not exact comparison counts.</p>
+<div class="tw"><table><tbody>
+<tr><th>Time, best, average and worst</th><td>O(n log n)</td></tr><tr><th>Extra space (arrays)</th><td>O(n)</td></tr><tr><th>Stable</th><td>Yes</td></tr></tbody></table></div>
+<p>It suits linked lists and data too large for memory, because merging reads each input from front to back. For small arrays in memory, simpler sorts such as insertion sort are often faster, which is why hybrids like Timsort use both.</p>
+</main>
+<script>
+const CODE=["def merge_sort(a):","    if len(a) <= 1:","        return a","    mid = len(a) // 2","    L = merge_sort(a[:mid])","    R = merge_sort(a[mid:])","    out, i, j = [], 0, 0","    while i < len(L) and j < len(R):","        if L[i] <= R[j]:","            out.append(L[i]); i += 1","        else:","            out.append(R[j]); j += 1","    return out + L[i:] + R[j:]"];
+const $=id=>document.getElementById(id), NS='http://www.w3.org/2000/svg';
+CODE.forEach(t=>{const s=document.createElement('span');s.textContent=t;$('code').append(s)});
+let items,frames,at=0,timer=null,nodes=[],boxes=[],W,H,depthMax;
+const TW=58,STEP=64,GAP=20,ROW=88;
+function build(vals){
+  const seen={},total={};vals.forEach(v=>total[v]=(total[v]||0)+1);
+  items=vals.map((v,id)=>({id,v,tag:total[v]>1?String.fromCharCode(97+(seen[v]=(seen[v]??-1)+1)):''}));
+  const n=items.length;depthMax=Math.ceil(Math.log2(n));
+  // x position of each slot: wider gaps where the tree splits earlier
+  const gaps=Array(n).fill(0);const segs=[];
+  (function walk(lo,hi,d){segs.push({lo,hi,d});if(hi-lo<2)return;const m=lo+((hi-lo)>>1);gaps[m]=GAP*Math.max(.3,1-d*.35);walk(lo,m,d+1);walk(m,hi,d+1)})(0,n,0);
+  const xs=[];let x=12;for(let i=0;i<n;i++){x+=gaps[i];xs.push(x);x+=STEP}
+  W=Math.max(x+6,520);const off=(W-(x+6))/2;xs.forEach((_,i)=>xs[i]+=off);H=(depthMax+1)*ROW;
+  const pos=items.map((_,i)=>({s:i,d:0,c:''}));frames=[];let comps=0;const shown=new Set(['0-'+n]);let cur='0-'+n;
+  const snap=(say,line,hot=[])=>frames.push({say,line,hot,comps,cur,shown:new Set(shown),pos:pos.map(p=>({...p}))});
+  const name=a=>a.map(e=>e.v+e.tag).join(', ');
+  snap(`Start with ${n} unsorted numbers.`,0);
+  (function sort(a,lo,d){
+    const key=lo+'-'+(lo+a.length);cur=key;
+    if(a.length<=1){a.forEach(e=>pos[e.id].c='ok');snap(`[${name(a)}] has one item, so it is already sorted.`,2);return a}
+    const m=a.length>>1,A=a.slice(0,m),B=a.slice(m);
+    shown.add(lo+'-'+(lo+m));shown.add((lo+m)+'-'+(lo+a.length));
+    a.forEach((e,k)=>pos[e.id]={s:lo+k,d:d+1,c:k<m?'l':'r'});
+    snap(`Split [${name(a)}] into [${name(A)}] and [${name(B)}].`,3);
+    const L=sort(A,lo,d+1),R=sort(B,lo+m,d+1);cur=key;
+    L.forEach(e=>pos[e.id].c='l');R.forEach(e=>pos[e.id].c='r');
+    snap(`Both halves are sorted. Merge [${name(L)}] with [${name(R)}].`,6);
+    const out=[];let i=0,j=0;
+    const take=e=>{pos[e.id]={s:lo+out.length,d,c:'ok'};out.push(e)};
+    while(i<L.length&&j<R.length){
+      const l=L[i],r=R[j],left=l.v<=r.v;comps++;
+      snap(`Compare the front items: ${l.v}${l.tag} and ${r.v}${r.tag}.`,8,[l.id,r.id]);
+      take(left?l:r);left?i++:j++;
+      snap(l.v===r.v?`A tie, so take ${l.v}${l.tag} from the left. This keeps the original order.`:`Take ${out.at(-1).v}${out.at(-1).tag}, the smaller one.`,left?9:11);
+    }
+    const rest=[...L.slice(i),...R.slice(j)];rest.forEach(take);
+    snap(`One side is empty. Copy the rest: ${name(rest)}.`,12);
+    return out;
+  })(items,0,0);
+  snap(`Sorted, using ${comps} comparisons.`,12);
+  // draw
+  const svg=$('stage');svg.setAttribute('viewBox',`0 0 ${W} ${H}`);svg.textContent='';
+  const mk=(t,at,p=svg)=>{const e=document.createElementNS(NS,t);for(const k in at)e.setAttribute(k,at[k]);p.append(e);return e};
+  boxes=segs.map(s=>({key:s.lo+'-'+s.hi,el:mk('rect',{class:'box',x:xs[s.lo]-5,y:s.d*ROW+10,width:xs[s.hi-1]-xs[s.lo]+TW+10,height:68,rx:9})}));
+  nodes=items.map(e=>{const g=mk('g',{class:'tile'});mk('rect',{width:TW,height:56,rx:6},g);const t=mk('text',{x:TW/2,y:37},g);t.textContent=e.v;if(e.tag){const s=mk('tspan',{class:'s'},t);s.textContent=e.tag}return g});
+  nodes.xs=xs;$('scrub').max=frames.length-1;go(0);
+}
+function go(k){
+  at=Math.max(0,Math.min(frames.length-1,k));const f=frames[at];
+  f.pos.forEach((p,i)=>{nodes[i].style.transform=`translate(${nodes.xs[p.s]}px,${p.d*ROW+16}px)`;nodes[i].setAttribute('class',`tile ${p.c}${f.hot.includes(i)?' cmp':''}`)});
+  boxes.forEach(b=>{b.el.style.display=f.shown.has(b.key)?'':'none';b.el.classList.toggle('cur',b.key===f.cur&&at<frames.length-1)});
+  [...$('code').children].forEach((s,i)=>s.classList.toggle('on',i===f.line));
+  $('say').textContent=f.say;$('pos').textContent=`step ${at+1} of ${frames.length}`;$('cmp').textContent=`comparisons: ${f.comps}`;
+  $('scrub').value=at;$('back').disabled=at===0;$('next').disabled=at===frames.length-1;
+}
+function stop(){clearTimeout(timer);timer=null;$('play').textContent='Play'}
+function tick(){timer=setTimeout(()=>{go(at+1);at<frames.length-1?tick():stop()},[1800,1200,850,600,350][$('speed').value-1])}
+$('play').onclick=()=>{if(timer)return stop();if(at===frames.length-1)go(0);$('play').textContent='Pause';go(at+1);tick()};
+$('next').onclick=()=>{stop();go(at+1)};$('back').onclick=()=>{stop();go(at-1)};$('reset').onclick=()=>{stop();go(0)};
+$('scrub').oninput=e=>{stop();go(+e.target.value)};
+$('form').onsubmit=e=>{e.preventDefault();const p=$('vals').value.split(/[\s,]+/).filter(Boolean).map(Number);
+  if(p.length<2||p.length>10||p.some(v=>!Number.isInteger(v)||v<0||v>999)){$('err').textContent='Enter 2 to 10 whole numbers from 0 to 999, separated by commas.';return}
+  $('err').textContent='';stop();build(p)};
+$('shuf').onclick=()=>{$('vals').value=Array.from({length:8},()=>1+Math.random()*99|0).join(', ');$('form').requestSubmit()};
+build([38,27,43,3,9,82,10,27]);
+</script>
+
+</body></html>
